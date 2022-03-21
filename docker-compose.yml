@@ -1,0 +1,77 @@
+version: '3'
+
+services:
+    nginx:
+        build:
+            context: "nginx"
+        ports:
+            - '80:80'
+            - '443:443'
+        volumes:
+            - /workspaces:/workspaces
+            - "phpsocket:/run/php"
+        networks:
+            - localdev
+        depends_on:
+            - redis
+            - php
+
+    php:
+        build:
+            context: "php"
+        volumes:
+            - /workspaces:/workspaces
+            - "phpsocket:/run/php"
+        networks:
+            - localdev
+
+    db:
+        image: mariadb:10.3
+        restart: always
+        ports:
+            - 3306:3306
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-notSecureChangeMe}
+        networks:
+            - localdev
+        volumes:
+            - /opt/mysql:/var/lib/mysql
+
+    phpmyadmin:
+        image: phpmyadmin
+        restart: always
+        ports:
+            - 8306:80
+        environment:
+            PMA_HOST: db
+        networks:
+            - localdev
+
+    redis:
+        image: 'redis:alpine'
+        ports:
+            - '6379:6379'
+        volumes:
+            - 'devredis:/data'
+        networks:
+            - localdev
+        healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            retries: 3
+            timeout: 5s
+
+    mailhog:
+        image: 'mailhog/mailhog:latest'
+        ports:
+            - '1025:1025'
+            - '8025:8025'
+        networks:
+            - localdev
+networks:
+    localdev:
+        driver: bridge
+
+volumes:
+    devredis:
+        driver: local
+    phpsocket:
